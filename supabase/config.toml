@@ -1,0 +1,7 @@
+project_id = "ahjdxofuzuazzetqkxxn"
+
+[functions.daily-backup]
+verify_jwt = false
+
+[functions.data-consistency-check]
+verify_jwt = false
