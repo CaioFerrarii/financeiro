@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, BarChart3, Shield, ArrowRight } from 'lucide-react';
+// TrendingUp ainda usado nas features cards abaixo
 
 export default function Index() {
   return (
@@ -10,12 +11,10 @@ export default function Index() {
         <div className="gradient-bg absolute inset-0 opacity-10" />
         <div className="container mx-auto px-4 py-20 lg:py-32 relative">
           <div className="max-w-3xl mx-auto text-center">
-            <div className="flex items-center justify-center gap-2 mb-6">
-              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary">
-                <TrendingUp className="h-7 w-7 text-primary-foreground" />
-              </div>
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <img src="/favicon-64x64.png" alt="Fihub" className="w-12 h-12 rounded-xl" />
               <h1 className="text-4xl lg:text-5xl font-display font-bold text-foreground">
-                Fihbub
+                Fihub
               </h1>
             </div>
             <p className="text-xl text-muted-foreground mb-8 max-w-xl mx-auto">
@@ -69,7 +68,7 @@ export default function Index() {
       {/* Footer */}
       <footer className="border-t border-border py-8">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          © 2024 Fihbub. Todos os direitos reservados.
+          © 2024 Fihub. Todos os direitos reservados.
         </div>
       </footer>
     </div>

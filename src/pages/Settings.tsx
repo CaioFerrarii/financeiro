@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCompany } from '@/hooks/useCompany';
 import { useRequireCompany } from '@/hooks/useRequireCompany';
 import { useToast } from '@/hooks/use-toast';
+import { useSearchParams } from 'react-router-dom';
+import { useApiSync } from '@/hooks/useApiSync';
+import { isMercadoLivreConnected, getMercadoLivreAuthUrl } from '@/lib/marketplaceSync';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,6 +54,9 @@ import {
   Building2,
   CreditCard,
   Crown,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -121,7 +127,45 @@ export default function Settings() {
   const { company, userRole, loading: companyLoading, isAdmin, canEdit } = useCompany();
   const { companyId, isReady } = useRequireCompany();
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { isSyncing, syncConnection, syncAll } = useApiSync(companyId);
+  const [mlConnected, setMlConnected] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Tratar retorno OAuth do Mercado Livre
+  useEffect(() => {
+    const mlSuccess = searchParams.get('ml_success');
+    const mlError   = searchParams.get('ml_error');
+    const mlNick    = searchParams.get('ml_nickname');
+
+    if (mlSuccess === 'true') {
+      toast({
+        title: '🎉 Mercado Livre conectado!',
+        description: `Conta @${mlNick || 'vendedor'} vinculada. Sincronizando pedidos...`,
+      });
+      setMlConnected(true);
+      setSearchParams(prev => { prev.delete('ml_success'); prev.delete('ml_nickname'); return prev; });
+      // Auto-sync após OAuth
+      const mlConn = apiConnections.find(c => c.platform === 'mercado_livre');
+      if (mlConn) syncConnection(mlConn, fetchData);
+    }
+
+    if (mlError) {
+      toast({
+        title: 'Erro ao conectar Mercado Livre',
+        description: `Falha: ${mlError}`,
+        variant: 'destructive',
+      });
+      setSearchParams(prev => { prev.delete('ml_error'); return prev; });
+    }
+  }, [searchParams]);
+
+  // Verificar se ML está conectado via OAuth
+  useEffect(() => {
+    if (companyId) {
+      isMercadoLivreConnected(companyId).then(setMlConnected);
+    }
+  }, [companyId]);
   
   // States
   const [authorizedEmails, setAuthorizedEmails] = useState<AuthorizedEmail[]>([]);
@@ -1106,6 +1150,18 @@ const handleInviteUser = async (e: React.FormEvent) => {
                 </CardDescription>
               </div>
               {canEdit && (
+                <div className="flex items-center gap-2">
+                  {apiConnections.filter(c => c.is_active).length > 0 && (
+                    <Button
+                      variant="outline"
+                      className="gap-2"
+                      onClick={() => syncAll(apiConnections, fetchData)}
+                      disabled={apiConnections.some(c => isSyncing(c.id))}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Sincronizar Tudo
+                    </Button>
+                  )}
                 <Dialog open={apiDialogOpen} onOpenChange={(open) => {
                   setApiDialogOpen(open);
                   if (!open) resetApiForm();
@@ -1177,6 +1233,7 @@ const handleInviteUser = async (e: React.FormEvent) => {
                     </form>
                   </DialogContent>
                 </Dialog>
+                </div>
               )}
             </CardHeader>
             <CardContent>
@@ -1193,8 +1250,20 @@ const handleInviteUser = async (e: React.FormEvent) => {
                 <TableBody>
                   {apiConnections.map((conn) => (
                     <TableRow key={conn.id}>
-                      <TableCell className="font-medium capitalize">
-                        {platforms.find(p => p.value === conn.platform)?.name || conn.platform}
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <span className="capitalize">
+                            {platforms.find(p => p.value === conn.platform)?.name || conn.platform}
+                          </span>
+                          {conn.platform === 'mercado_livre' && (
+                            <Badge variant={mlConnected ? 'default' : 'secondary'} className="text-xs gap-1">
+                              {mlConnected
+                                ? <><CheckCircle2 className="h-3 w-3" /> OAuth OK</>
+                                : <><AlertCircle className="h-3 w-3" /> Requer autorização</>
+                              }
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -1227,7 +1296,7 @@ const handleInviteUser = async (e: React.FormEvent) => {
                           </Badge>
                         </div>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-muted-foreground text-sm">
                         {conn.last_sync_at
                           ? new Date(conn.last_sync_at).toLocaleString('pt-BR')
                           : 'Nunca'}
@@ -1235,6 +1304,29 @@ const handleInviteUser = async (e: React.FormEvent) => {
                       {canEdit && (
                         <TableCell>
                           <div className="flex items-center gap-1">
+                            {/* Botão Sincronizar */}
+                            {conn.platform === 'mercado_livre' && !mlConnected ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1 text-xs"
+                                onClick={() => window.location.href = getMercadoLivreAuthUrl(companyId!)}
+                              >
+                                <Link2 className="h-3 w-3" />
+                                Autorizar
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1 text-xs"
+                                disabled={isSyncing(conn.id) || !conn.is_active}
+                                onClick={() => syncConnection(conn, fetchData)}
+                              >
+                                <RefreshCw className={`h-3 w-3 ${isSyncing(conn.id) ? 'animate-spin' : ''}`} />
+                                {isSyncing(conn.id) ? 'Sync...' : 'Sincronizar'}
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -1318,4 +1410,4 @@ const handleInviteUser = async (e: React.FormEvent) => {
       </Tabs>
     </div>
   );
-}
+};

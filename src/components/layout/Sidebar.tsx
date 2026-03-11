@@ -8,7 +8,6 @@ import {
   Tags,
   Settings,
   LogOut,
-  TrendingUp,
   FileText,
   Upload,
   Download,
@@ -43,11 +42,9 @@ export function Sidebar() {
     <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-card border-r border-border">
       {/* Logo */}
       <div className="flex items-center gap-2 h-16 px-6 border-b border-border">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary">
-          <TrendingUp className="h-5 w-5 text-primary-foreground" />
-        </div>
+        <img src="public/favicon_64x64.png" alt="Fihub" className="w-8 h-8" />
         <span className="text-xl font-display font-bold text-foreground">
-          Fihbub
+          Fihub
         </span>
       </div>
 

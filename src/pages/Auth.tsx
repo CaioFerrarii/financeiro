@@ -22,9 +22,10 @@ import {
   Store,
   Building2,
   ArrowLeft,
-  Mail,
-  CheckCircle2 as CheckCircleIcon
+  Mail
 } from 'lucide-react';
+
+const CheckCircleIcon = CheckCircle2;
 import { loginSchema, subscriptionFormSchema } from '@/lib/validators';
 
 const planFeatures = [
